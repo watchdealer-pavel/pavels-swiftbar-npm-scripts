@@ -25,6 +25,7 @@ These scripts provide a convenient menu bar interface to manage your npm develop
     - ### Step 1: Install SwiftBar
    
     - If you haven't already:
+   
     - ```bash
       brew install swiftbar
       ```
@@ -42,37 +43,30 @@ These scripts provide a convenient menu bar interface to manage your npm develop
             5. Clone this repo or download the scripts:
            
             6. ```bash
-               # Option A: Clone the entire repo to your plugins folder
                git clone https://github.com/watchdealer-pavel/pavels-swiftbar-npm-scripts.git ~/Documents/SwiftBar/npm-dev-server
-
-               # Option B: Copy individual files manually
-               # Download npm-dev-server.1m.sh to your plugin folder
                ```
+
+               Or copy individual files to your plugin folder manually.
 
                ### Step 4: Customize (IMPORTANT!)
 
-               Edit the plugin file and replace the path to your project:
+               Edit the main plugin file and set your project path:
 
                ```bash
                nano ~/Documents/SwiftBar/npm-dev-server.1m.sh
                ```
 
-               Find this line:
+               Find and replace this line:
                ```bash
-               PROJECT_PATH="/path/to/your/project"
+               PROJECT_PATH="$HOME/your-project-name"
                ```
 
-               Replace `/path/to/your/project` with your actual project path. For example:
+               Update with your actual project path:
                ```bash
                PROJECT_PATH="$HOME/projects/my-app"
                ```
 
-               Or if your project is in your home directory:
-               ```bash
-               PROJECT_PATH="~/my-app"
-               ```
-
-               Save the file (Ctrl+X, then Y, then Enter in nano).
+               Save (Ctrl+X, then Y, then Enter in nano).
 
                ### Step 5: Make Scripts Executable
 
@@ -84,118 +78,119 @@ These scripts provide a convenient menu bar interface to manage your npm develop
 
                ### Step 6: Reload SwiftBar
 
-               - Click SwiftBar menu icon → "Refresh all plugins"
-               - - OR restart SwiftBar
-                 - - The npm server icon should now appear in your menu bar!
+               Click SwiftBar menu → "Refresh all plugins" or restart SwiftBar.
+
+               The npm server icon should now appear in your menu bar!
+
+               ## Usage
+
+               ### Starting the Server
+
+               - Click the menu bar icon
+               - - Select "Start Dev Server"
+                 - - Icon turns 🟢 green when running
                   
-                   - ## Usage
-                  
-                   - ### Starting the Server
+                   - ### Stopping the Server
                   
                    - - Click the menu bar icon
-                     - - Select "Start Dev Server"
-                       - - The icon turns 🟢 green when running
+                     - - Select "Stop Dev Server"
+                       - - Icon turns 🔴 red
                         
-                         - ### Stopping the Server
+                         - ### Checking Status
                         
-                         - - Click the menu bar icon
-                           - - Select "Stop Dev Server"
-                             - - The icon turns 🔴 red
-                              
-                               - ### Checking Status
-                              
-                               - - Look at the icon:
-                                 -   - 🟢 Green = Server is running
-                                     -   - 🔴 Red = Server is stopped
-                                      
-                                         - ## File Structure
-                                      
-                                         - ```
-                                           npm-dev-server.1m.sh     → Main plugin script
-                                           start-server.sh          → Helper script to start the server
-                                           stop-server.sh           → Helper script to stop the server
-                                           README.md                → This file
-                                           ```
+                         - - 🟢 Green icon = Server is running
+                           - - 🔴 Red icon = Server is stopped
+                            
+                             - ## File Structure
+                            
+                             - ```
+                               npm-dev-server.1m.sh     → Main plugin script
+                               start-server.sh          → Helper script to start server
+                               stop-server.sh           → Helper script to stop server
+                               README.md                → This file
+                               ```
 
-                                           ## How It Works
+                               ## How It Works
 
-                                           **Plugin File** (`npm-dev-server.1m.sh`):
-                                           - Checks if a process matching "npm run dev" is running
-                                           - - Displays status in the menu bar
-                                             - - Updates every 1 minute
+                               **npm-dev-server.1m.sh:**
+                               - Checks if "npm run dev" process is running
+                               - - Displays status in menu bar with color
+                                 - - Updates every 1 minute
+                                  
+                                   - **start-server.sh:**
+                                   - - Starts npm dev server in background
+                                     - - Uses nohup to keep it running
+                                      
+                                       - **stop-server.sh:**
+                                       - - Gracefully stops the npm server process
+                                        
+                                         - ## Customization
+                                        
+                                         - ### Change Refresh Rate
+                                        
+                                         - Rename the plugin file to change how often it updates:
+                                         - - `npm-dev-server.1m.sh` → 1 minute (default)
+                                           - - `npm-dev-server.30s.sh` → 30 seconds
+                                             - - `npm-dev-server.5m.sh` → 5 minutes
                                               
-                                               - **Helper Scripts**:
-                                               - - `start-server.sh`: Starts npm dev server in the background
-                                                 - - `stop-server.sh`: Gracefully kills the server process
-                                                  
-                                                   - ## Customization
-                                                  
-                                                   - ### Change Refresh Rate
-                                                  
-                                                   - Edit the filename of the main plugin:
-                                                   - - `npm-dev-server.1m.sh` → Updates every 1 minute
-                                                     - - `npm-dev-server.30s.sh` → Updates every 30 seconds
-                                                       - - `npm-dev-server.5m.sh` → Updates every 5 minutes
-                                                        
-                                                         - Then reload SwiftBar.
-                                                        
-                                                         - ### Change the Server Command
-                                                        
-                                                         - If your dev command is different (e.g., `npm run start` or `yarn dev`):
-                                                        
-                                                         - Edit the plugin and change:
-                                                         - ```bash
-                                                           if pgrep -f "npm run dev" > /dev/null; then
-                                                           ```
+                                               - Then reload SwiftBar.
+                                              
+                                               - ### Change Server Command
+                                              
+                                               - If you use `npm run start` or `yarn dev` instead:
+                                              
+                                               - Edit the plugin and update these lines:
+                                               - ```bash
+                                                 if pgrep -f "npm run dev" > /dev/null; then
+                                                 ```
 
-                                                           To your command:
-                                                           ```bash
-                                                           if pgrep -f "npm run start" > /dev/null; then
-                                                           ```
+                                                 to match your command, e.g.:
+                                                 ```bash
+                                                 if pgrep -f "npm run start" > /dev/null; then
+                                                 ```
 
-                                                           Also update the start script accordingly.
+                                                 ## Troubleshooting
 
-                                                           ## Troubleshooting
+                                                 ### Icon doesn't appear
 
-                                                           ### Icon doesn't appear
+                                                 - Verify SwiftBar is running
+                                                 - - Check script permissions: `chmod +x ~/Documents/SwiftBar/npm-dev-server.1m.sh`
+                                                   - - Restart SwiftBar
+                                                     - - Check plugin folder path in SwiftBar preferences
+                                                      
+                                                       - ### Status doesn't update
+                                                      
+                                                       - - Right-click icon → "Refresh"
+                                                         - - Or: SwiftBar menu → "Refresh all plugins"
+                                                          
+                                                           - ### Server won't start
+                                                          
+                                                           - - Verify PROJECT_PATH is correct
+                                                             - - Test npm command manually in terminal
+                                                               - - Check SwiftBar logs: `log stream --predicate 'process == "SwiftBar"' --level debug`
+                                                                
+                                                                 - ### Terminal window keeps opening
+                                                                
+                                                                 - - Ensure `terminal=false` is in plugin commands
+                                                                   - - This is already configured in provided script
+                                                                    
+                                                                     - ## Logs
+                                                                    
+                                                                     - To debug issues:
+                                                                    
+                                                                     - ```bash
+                                                                       log stream --predicate 'process == "SwiftBar"' --level debug
+                                                                       ```
 
-                                                           - Verify SwiftBar is running
-                                                           - - Check that the plugin file has execute permissions: `chmod +x ~/Documents/SwiftBar/npm-dev-server.1m.sh`
-                                                             - - Restart SwiftBar
-                                                              
-                                                               - ### Status doesn't update
-                                                              
-                                                               - - Right-click the icon → "Refresh"
-                                                                 - - Or: SwiftBar menu → "Refresh all plugins"
-                                                                  
-                                                                   - ### Server won't start/stop
-                                                                  
-                                                                   - - Check the `PROJECT_PATH` is correct and your project exists
-                                                                     - - Verify the npm command works manually in terminal
-                                                                       - - Check SwiftBar logs: Open Console.app and search for "SwiftBar"
-                                                                        
-                                                                         - ### Terminal window keeps popping up
-                                                                        
-                                                                         - - Make sure `terminal=false` is in the plugin command parameters
-                                                                           - - This is already configured in the provided script
-                                                                            
-                                                                             - ## Logs and Debugging
-                                                                            
-                                                                             - To debug issues, check SwiftBar logs:
-                                                                            
-                                                                             - ```bash
-                                                                               log stream --predicate 'process == "SwiftBar"' --level debug
-                                                                               ```
+                                                                       ## License
 
-                                                                               ## License
+                                                                       MIT - Feel free to use and modify for your needs
 
-                                                                               MIT - Feel free to use and modify for your needs
+                                                                       ## Contributing
 
-                                                                               ## Contributing
+                                                                       Found a bug? Want to improve? Issues and pull requests welcome!
 
-                                                                               Found a bug or want to improve these scripts? Issues and pull requests are welcome!
+                                                                       ---
 
-                                                                               ---
-
-                                                                               **Made for macOS developers who want their dev workflow a little bit smoother.** 🚀
-                                                                               
+                                                                       **Made for macOS developers who want their dev workflow a little bit smoother.** 🚀
+                                                                       
