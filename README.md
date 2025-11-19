@@ -2,45 +2,50 @@
 
 Control your npm dev server from the macOS menu bar.
 
-![npm scripts in action](https://img.shields.io/badge/macOS-SwiftBar-blue?style=flat-square)
+![npm scripts in action](preview.png)
+
+![SwiftBar](https://img.shields.io/badge/macOS-SwiftBar-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
 ## Quick Start
 
 1. Install SwiftBar: `brew install swiftbar`
 2. Clone this repo to your SwiftBar plugins folder
-3. Configure via SwiftBar: Plugin > Plugin Settings...
+3. Configure the script (see below)
 4. Make scripts executable: `chmod +x *.sh`
 5. Reload SwiftBar
 
 ## Configuration
  
-This plugin uses SwiftBar/xbar variables for configuration. You don't need to edit the script directly.
- 
-1. Open SwiftBar menu
-2. Go to **Plugin Settings...**
-3. Set the following variables:
-   - `VAR_PROJECT_PATH`: Path to your project directory (e.g. `/Users/pavel/projects/my-app`)
-   - `VAR_DEV_COMMAND`: Command to start the server (default: `npm run dev`)
- 
-You can also optionally set a custom process name if needed by editing the script, but the default auto-detection usually works fine.
+1. Open the plugin script (`npm-dev-server.5s.sh`) in your text editor.
+2. Edit the **CONFIGURATION** section at the top of the file:
+
+```bash
+# Path to your project directory (Required)
+PROJECT_PATH="$HOME/projects/my-app"
+
+# Command to start the server (Default: npm run dev)
+DEV_COMMAND="npm run dev"
+```
+
+3. Save the file and refresh SwiftBar (Plugin > Refresh All).
 
 ## What You Get
 
-A minimal menu bar icon using SF Symbols that shows server status (green circle=running, red circle=stopped). Click it to start/stop your npm dev server with visual notifications.
+A minimal menu bar icon using SF Symbols that shows server status (green circle=running, red circle=stopped).
 
-Additional features:
-- **SF Symbols integration** for a clean, minimalistic interface
-- **Automatic error detection** with helpful notifications
-- **Server logging** with live log viewing in Terminal
-- **Native SwiftBar Configuration** using variables
-- **PID-based process management** for reliable server control
-- **Immediate UI refresh** after start/stop actions
-- **Homebrew PATH support** for reliable npm/yarn detection
+### Features
+
+*   **Start/Stop Server**: Control your npm dev server directly from the menu bar.
+*   **Live URL**: When running, the menu displays the clickable server URL (e.g., `http://localhost:3000`).
+*   **Other Servers**: Detects and lists other running `node` servers on your machine with their ports.
+*   **Kill Process**: Easily kill any "stuck" or other running node processes directly from the menu.
+*   **SF Symbols**: Clean, native macOS aesthetic.
+*   **Logging**: View live server logs in Terminal.
 
 ## Files
 
-- `npm-dev-server.1m.sh` - Main SwiftBar plugin with SF Symbols
+- `npm-dev-server.5s.sh` - Main SwiftBar plugin with SF Symbols
 - `server.pid` - PID file for process management (auto-generated)
 - `server.log` - Server output log (auto-generated)
 
