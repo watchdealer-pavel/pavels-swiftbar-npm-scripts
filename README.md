@@ -9,31 +9,21 @@ Control your npm dev server from the macOS menu bar.
 
 1. Install SwiftBar: `brew install swiftbar`
 2. Clone this repo to your SwiftBar plugins folder
-3. Edit `npm-dev-server.1m.sh` and set your project path
+3. Configure via SwiftBar: Plugin > Plugin Settings...
 4. Make scripts executable: `chmod +x *.sh`
 5. Reload SwiftBar
 
-## Setup
-
-Edit the main plugin file and change these lines:
-
-```bash
-PROJECT_PATH="$HOME/your-project-name"
-DEV_COMMAND="npm run dev"
-```
-
-To your actual project path and command:
-
-```bash
-PROJECT_PATH="$HOME/projects/my-app"
-DEV_COMMAND="npm run start"  # or "yarn dev", etc.
-```
-
-You can also optionally set a custom process name if needed:
-
-```bash
-PROCESS_NAME="node"  # Leave empty to auto-detect from DEV_COMMAND
-```
+## Configuration
+ 
+This plugin uses SwiftBar/xbar variables for configuration. You don't need to edit the script directly.
+ 
+1. Open SwiftBar menu
+2. Go to **Plugin Settings...**
+3. Set the following variables:
+   - `VAR_PROJECT_PATH`: Path to your project directory (e.g. `/Users/pavel/projects/my-app`)
+   - `VAR_DEV_COMMAND`: Command to start the server (default: `npm run dev`)
+ 
+You can also optionally set a custom process name if needed by editing the script, but the default auto-detection usually works fine.
 
 ## What You Get
 
@@ -43,7 +33,7 @@ Additional features:
 - **SF Symbols integration** for a clean, minimalistic interface
 - **Automatic error detection** with helpful notifications
 - **Server logging** with live log viewing in Terminal
-- **Configuration helper** for easy setup
+- **Native SwiftBar Configuration** using variables
 - **PID-based process management** for reliable server control
 - **Immediate UI refresh** after start/stop actions
 - **Homebrew PATH support** for reliable npm/yarn detection
@@ -54,7 +44,6 @@ Additional features:
 - `start-server.sh` - Starts the server with PID management
 - `stop-server.sh` - Stops the server using PID for precise control
 - `view-logs.sh` - Opens Terminal with live log tailing
-- `configure.sh` - Interactive configuration helper
 - `server.pid` - PID file for process management (auto-generated)
 - `server.log` - Server output log (auto-generated)
 
@@ -65,14 +54,6 @@ Rename the main file to change refresh rate:
 - `npm-dev-server.5m.sh` = 5 minutes
 
 ## Advanced Usage
-
-### Using the Configuration Helper
-
-Instead of manually editing the main script, you can use the configuration helper:
-
-1. Right-click the menu bar item
-2. Select "Configure Project"
-3. Follow the prompts to update your settings
 
 ### Viewing Server Logs
 
@@ -92,13 +73,13 @@ The logs are also saved to `server.log` in the plugin directory.
 - Restart SwiftBar
 
 ### Server won't start
-- Check PROJECT_PATH is correct using the configuration helper
+- Check `VAR_PROJECT_PATH` is correct in Plugin Settings
 - Test manually: `cd ~/your-project && npm run dev`
 - Check server logs for detailed error messages
 - Verify Homebrew is in PATH (plugin includes this automatically)
 
 ### Wrong command?
-Use the configuration helper or edit the plugin and change `DEV_COMMAND="npm run dev"` to your command (e.g. `npm run start` or `yarn dev`)
+Use Plugin Settings to change `VAR_DEV_COMMAND` to your command (e.g. `npm run start` or `yarn dev`)
 
 ### Server stops immediately
 - Check if your project has all dependencies installed

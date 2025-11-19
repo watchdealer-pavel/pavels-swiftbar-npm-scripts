@@ -1,20 +1,24 @@
 #!/bin/bash
 
 # <xbar.title>NPM Dev Server</xbar.title>
-# <xbar.version>v1.1</xbar.version>
+# <xbar.version>v1.2</xbar.version>
 # <xbar.author>Pavel</xbar.author>
+# <xbar.author.github>pavel</xbar.author.github>
 # <xbar.desc>Start/stop npm dev server from the menu bar</xbar.desc>
+# <xbar.image>https://github.com/pavel/pavels-swiftbar/raw/main/preview.png</xbar.image>
 # <xbar.dependencies>npm</xbar.dependencies>
+# <xbar.abouturl>https://github.com/pavel/pavels-swiftbar</xbar.abouturl>
+
+# <xbar.var>string(VAR_PROJECT_PATH=""): Path to your project directory</xbar.var>
+# <xbar.var>string(VAR_DEV_COMMAND="npm run dev"): Command to start the server</xbar.var>
 
 # Ensure Homebrew binaries are available
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 # ===== CONFIGURATION =====
-# Replace this with your project path
-PROJECT_PATH="$HOME/your-project-name"
-
-# The command that starts your dev server
-DEV_COMMAND="npm run dev"
+# Get configuration from xbar variables or use defaults
+PROJECT_PATH="${VAR_PROJECT_PATH:-$HOME/your-project-name}"
+DEV_COMMAND="${VAR_DEV_COMMAND:-npm run dev}"
 
 # Process name to search for (must match what appears in 'ps' output)
 # This will be automatically derived from DEV_COMMAND if left empty
@@ -89,11 +93,10 @@ stop_server() {
 if is_server_running; then
     echo "| sfimage=circle.fill color=green tooltip=Dev Server Running"
     echo "---"
-    echo "Stop Server | bash=$SCRIPT_DIR/stop-server.sh param1=$PROJECT_PATH param2=$DEV_COMMAND terminal=false refresh=true tooltip=Stop the development server"
+    echo "Stop Server | bash=$SCRIPT_DIR/stop-server.sh param1=\"$PROJECT_PATH\" param2=\"$DEV_COMMAND\" terminal=false refresh=true tooltip=Stop the development server"
     echo "View Logs | bash=$SCRIPT_DIR/view-logs.sh terminal=true refresh=true tooltip=View server logs in Terminal"
 else
     echo "| sfimage=circle.fill color=red tooltip=Dev Server Stopped"
     echo "---"
-    echo "Start Server | bash=$SCRIPT_DIR/start-server.sh param1=$PROJECT_PATH param2=$DEV_COMMAND terminal=false refresh=true tooltip=Start the development server"
-    echo "Configure Project | bash=$SCRIPT_DIR/configure.sh terminal=true refresh=true tooltip=Configure project settings"
+    echo "Start Server | bash=$SCRIPT_DIR/start-server.sh param1=\"$PROJECT_PATH\" param2=\"$DEV_COMMAND\" terminal=false refresh=true tooltip=Start the development server"
 fi
