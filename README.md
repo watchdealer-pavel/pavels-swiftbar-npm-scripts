@@ -41,9 +41,6 @@ Additional features:
 ## Files
 
 - `npm-dev-server.1m.sh` - Main SwiftBar plugin with SF Symbols
-- `start-server.sh` - Starts the server with PID management
-- `stop-server.sh` - Stops the server using PID for precise control
-- `view-logs.sh` - Opens Terminal with live log tailing
 - `server.pid` - PID file for process management (auto-generated)
 - `server.log` - Server output log (auto-generated)
 

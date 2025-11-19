@@ -25,14 +25,14 @@ DEV_COMMAND="${VAR_DEV_COMMAND:-npm run dev}"
 PROCESS_NAME=""
 # ===== END CONFIGURATION =====
 
-# Get script directory
+# Get script directory and files
 SCRIPT_DIR="$(dirname "$0")"
+PID_FILE="$SCRIPT_DIR/server.pid"
+LOG_FILE="$SCRIPT_DIR/server.log"
 
 # Function to check if the server is running
 is_server_running() {
     # First check if PID file exists and process is running
-    PID_FILE="$SCRIPT_DIR/server.pid"
-    
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
         if ps -p "$PID" > /dev/null 2>&1; then
@@ -54,49 +54,104 @@ is_server_running() {
     return $?
 }
 
-# Function to start the server
-start_server() {
+# Action: Start Server
+action_start() {
     if [ ! -d "$PROJECT_PATH" ]; then
-        echo "Error: Project path does not exist: $PROJECT_PATH"
+        osascript -e "display notification \"Project path does not exist: $PROJECT_PATH\" with title \"NPM Dev Server Error\""
         exit 1
     fi
     
+    # Check if already running
+    if is_server_running; then
+        osascript -e "display notification \"Server is already running\" with title \"NPM Dev Server\""
+        exit 0
+    fi
+
     cd "$PROJECT_PATH" || exit 1
-    nohup $DEV_COMMAND > "$SCRIPT_DIR/server.log" 2>&1 &
+    nohup $DEV_COMMAND > "$LOG_FILE" 2>&1 &
+    SERVER_PID=$!
+    
+    # Save the PID
+    echo "$SERVER_PID" > "$PID_FILE"
     
     # Give the server a moment to start
     sleep 2
     
-    if is_server_running; then
-        echo "Server started successfully"
+    if ps -p "$SERVER_PID" > /dev/null 2>&1; then
+        osascript -e "display notification \"Server started successfully (PID: $SERVER_PID)\" with title \"NPM Dev Server\""
     else
-        echo "Failed to start server. Check $SCRIPT_DIR/server.log for details."
+        osascript -e "display notification \"Failed to start server. Check logs for details.\" with title \"NPM Dev Server Error\""
+        rm -f "$PID_FILE"
     fi
 }
 
-# Function to stop the server
-stop_server() {
+# Action: Stop Server
+action_stop() {
     # If PROCESS_NAME is not set, derive it from DEV_COMMAND
     if [ -z "$PROCESS_NAME" ]; then
         PROCESS_NAME=$(echo "$DEV_COMMAND" | awk '{print $1}')
     fi
     
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p "$PID" > /dev/null 2>&1; then
+            kill "$PID"
+            sleep 2
+            if ps -p "$PID" > /dev/null 2>&1; then
+                kill -9 "$PID"
+                sleep 1
+            fi
+            rm -f "$PID_FILE"
+            osascript -e "display notification \"Server stopped (PID: $PID)\" with title \"NPM Dev Server\""
+            return
+        else
+            rm -f "$PID_FILE"
+        fi
+    fi
+    
+    # Fallback to pkill if PID file didn't work or wasn't there
     if pgrep -f "$PROCESS_NAME" > /dev/null; then
         pkill -f "$PROCESS_NAME"
-        echo "Server stopped"
+        osascript -e "display notification \"Server stopped (detected by process name)\" with title \"NPM Dev Server\""
     else
-        echo "Server was not running"
+        osascript -e "display notification \"Server was not running\" with title \"NPM Dev Server\""
     fi
 }
 
-# Check if server is running and display appropriate menu
+# Action: View Logs
+action_logs() {
+    if [ -f "$LOG_FILE" ]; then
+        echo "Following server logs (Ctrl+C to exit):"
+        tail -f "$LOG_FILE"
+    else
+        echo "No log file found at $LOG_FILE"
+    fi
+}
+
+# Dispatcher based on argument
+case "$1" in
+    "start")
+        action_start
+        exit 0
+        ;;
+    "stop")
+        action_stop
+        exit 0
+        ;;
+    "logs")
+        action_logs
+        exit 0
+        ;;
+esac
+
+# Main Menu Output
 if is_server_running; then
     echo "| sfimage=circle.fill color=green tooltip=Dev Server Running"
     echo "---"
-    echo "Stop Server | bash=$SCRIPT_DIR/stop-server.sh param1=\"$PROJECT_PATH\" param2=\"$DEV_COMMAND\" terminal=false refresh=true tooltip=Stop the development server"
-    echo "View Logs | bash=$SCRIPT_DIR/view-logs.sh terminal=true refresh=true tooltip=View server logs in Terminal"
+    echo "Stop Server | bash=\"$0\" param1=stop terminal=false refresh=true tooltip=\"Stop the development server\""
+    echo "View Logs | bash=\"$0\" param1=logs terminal=true refresh=true tooltip=\"View server logs in Terminal\""
 else
     echo "| sfimage=circle.fill color=red tooltip=Dev Server Stopped"
     echo "---"
-    echo "Start Server | bash=$SCRIPT_DIR/start-server.sh param1=\"$PROJECT_PATH\" param2=\"$DEV_COMMAND\" terminal=false refresh=true tooltip=Start the development server"
+    echo "Start Server | bash=\"$0\" param1=start terminal=false refresh=true tooltip=\"Start the development server\""
 fi
