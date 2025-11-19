@@ -37,21 +37,26 @@ PROCESS_NAME="node"  # Leave empty to auto-detect from DEV_COMMAND
 
 ## What You Get
 
-A menu bar icon that shows server status (green=running, red=stopped). Click it to start/stop your npm dev server with visual notifications.
+A minimal menu bar icon using SF Symbols that shows server status (green circle=running, red circle=stopped). Click it to start/stop your npm dev server with visual notifications.
 
 Additional features:
+- **SF Symbols integration** for a clean, minimalistic interface
 - **Automatic error detection** with helpful notifications
-- **Server logging** to help troubleshoot issues
+- **Server logging** with live log viewing in Terminal
 - **Configuration helper** for easy setup
-- **Process auto-detection** for more reliable server management
+- **PID-based process management** for reliable server control
+- **Immediate UI refresh** after start/stop actions
+- **Homebrew PATH support** for reliable npm/yarn detection
 
 ## Files
 
-- `npm-dev-server.1m.sh` - Main SwiftBar plugin
-- `start-server.sh` - Starts the server with error handling
-- `stop-server.sh` - Stops the server with confirmation
-- `view-logs.sh` - Displays server logs for troubleshooting
+- `npm-dev-server.1m.sh` - Main SwiftBar plugin with SF Symbols
+- `start-server.sh` - Starts the server with PID management
+- `stop-server.sh` - Stops the server using PID for precise control
+- `view-logs.sh` - Opens Terminal with live log tailing
 - `configure.sh` - Interactive configuration helper
+- `server.pid` - PID file for process management (auto-generated)
+- `server.log` - Server output log (auto-generated)
 
 ## Customization
 
@@ -75,7 +80,9 @@ If you're experiencing issues, you can view the server logs:
 
 1. Right-click the menu bar item
 2. Select "View Logs"
-3. Check for any error messages
+3. A Terminal window will open with live log output (Ctrl+C to exit)
+
+The logs are also saved to `server.log` in the plugin directory.
 
 ## Troubleshooting
 
@@ -88,6 +95,7 @@ If you're experiencing issues, you can view the server logs:
 - Check PROJECT_PATH is correct using the configuration helper
 - Test manually: `cd ~/your-project && npm run dev`
 - Check server logs for detailed error messages
+- Verify Homebrew is in PATH (plugin includes this automatically)
 
 ### Wrong command?
 Use the configuration helper or edit the plugin and change `DEV_COMMAND="npm run dev"` to your command (e.g. `npm run start` or `yarn dev`)
@@ -96,6 +104,10 @@ Use the configuration helper or edit the plugin and change `DEV_COMMAND="npm run
 - Check if your project has all dependencies installed
 - Verify your package.json has the correct script defined
 - View the server logs for specific error messages
+
+### PID file issues
+- If the server status seems incorrect, delete the `server.pid` file
+- The plugin will automatically recreate it on next start
 
 ## License
 

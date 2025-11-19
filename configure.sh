@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Helper script to configure the project path and command
 SCRIPT_DIR="$(dirname "$0")"
