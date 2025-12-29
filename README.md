@@ -1,6 +1,6 @@
 # Pavel's SwiftBar npm Scripts
 
-Control your npm dev server from the macOS menu bar.
+Monitor and control all your npm dev servers from the macOS menu bar.
 
 ![npm scripts in action](preview.png)
 
@@ -16,84 +16,93 @@ Control your npm dev server from the macOS menu bar.
 5. Reload SwiftBar
 
 ## Configuration
- 
-1. Open the plugin script (`npm-dev-server.5s.sh`) in your text editor.
-2. Edit the **CONFIGURATION** section at the top of the file:
+
+Edit the **CONFIGURATION** section at the top of `npm-dev-server.5s.sh`:
 
 ```bash
-# Path to your project directory (Required)
-PROJECT_PATH="$HOME/projects/my-app"
+# Default project path for "Start Server" action
+PROJECT_PATH="${VAR_PROJECT_PATH:-$HOME/projects/my-app}"
 
-# Command to start the server (Default: npm run dev)
-DEV_COMMAND="npm run dev"
+# Command to start the server
+DEV_COMMAND="${VAR_DEV_COMMAND:-npm run dev}"
+
+# Resource warning thresholds
+CPU_WARNING_THRESHOLD=80      # Warn if CPU > 80%
+MEMORY_WARNING_THRESHOLD=500  # Warn if memory > 500MB
 ```
 
-3. Save the file and refresh SwiftBar (Plugin > Refresh All).
+## Features
 
-## What You Get
+* **Auto-Detection** — Automatically finds ALL running node servers on your machine
+* **Resource Monitoring** — Real-time CPU% and memory usage per server
+* **One-Click Actions** — Start, stop, or force-kill servers directly from the menu
+* **Quick Access** — Click any server to open `localhost:PORT` in your browser
+* **Warning Indicators** — Visual alerts for high CPU/memory or stuck processes
+* **Minimalist Design** — Clean monochrome SF Symbols, no distracting colors
 
-A minimal menu bar icon using SF Symbols that shows server status (green circle=running, red circle=stopped).
+## Menu Structure
 
-### Features
+**When idle:**
+```
+⌘                              ← Terminal icon (no servers)
+───
+  No servers running
+───
+▶ Start my-app                 ← Direct click to start
+───
+↻ Refresh
+```
 
-*   **Start/Stop Server**: Control your npm dev server directly from the menu bar.
-*   **Live URL**: When running, the menu displays the clickable server URL (e.g., `http://localhost:3000`).
-*   **Other Servers**: Detects and lists other running `node` servers on your machine with their ports.
-*   **Kill Process**: Easily kill any "stuck" or other running node processes directly from the menu.
-*   **SF Symbols**: Clean, native macOS aesthetic.
-*   **Logging**: View live server logs in Terminal.
+**When servers running:**
+```
+⌘ 2                            ← Terminal icon + count
+───
+✓ my-app :3000                 ← Click to open in browser
+   2.1% CPU · 125MB
+   /Users/you/projects/my-app
+   ───
+   ⏹ Stop
+   📄 Logs
+───
+✓ api-server :4000
+   ...
+───
+▶ Start my-app
+───
+↻ Refresh
+```
 
 ## Files
 
-- `npm-dev-server.5s.sh` - Main SwiftBar plugin with SF Symbols
-- `server.pid` - PID file for process management (auto-generated)
-- `server.log` - Server output log (auto-generated)
+- `npm-dev-server.5s.sh` — Main SwiftBar plugin
+- `~/.npm-dev-server/` — Runtime data (auto-created)
 
 ## Customization
 
-Rename the main file to change refresh rate:
+Rename the plugin file to change refresh rate:
 - `npm-dev-server.30s.sh` = 30 seconds
-- `npm-dev-server.5m.sh` = 5 minutes
-
-## Advanced Usage
-
-### Viewing Server Logs
-
-If you're experiencing issues, you can view the server logs:
-
-1. Right-click the menu bar item
-2. Select "View Logs"
-3. A Terminal window will open with live log output (Ctrl+C to exit)
-
-The logs are also saved to `server.log` in the plugin directory.
+- `npm-dev-server.1m.sh` = 1 minute
 
 ## Troubleshooting
 
-### Icon doesn't appear
-- Check SwiftBar is running
-- Verify file permissions: `chmod +x *.sh`
-- Restart SwiftBar
+### Error plugin appearing with "server" name
+Clean up old SwiftBar data directories:
+```bash
+rm -rf "$HOME/Library/Application Support/SwiftBar/Plugins/npm-dev-server.5s.sh"
+rm -rf "$HOME/Library/Application Support/SwiftBar/Plugins/server.log"
+```
 
 ### Server won't start
-- Check `VAR_PROJECT_PATH` is correct in Plugin Settings
+- Verify `PROJECT_PATH` points to a valid npm project
 - Test manually: `cd ~/your-project && npm run dev`
-- Check server logs for detailed error messages
-- Verify Homebrew is in PATH (plugin includes this automatically)
+- Check logs: `cat ~/.npm-dev-server/servers/*.log`
 
-### Wrong command?
-Use Plugin Settings to change `VAR_DEV_COMMAND` to your command (e.g. `npm run start` or `yarn dev`)
-
-### Server stops immediately
-- Check if your project has all dependencies installed
-- Verify your package.json has the correct script defined
-- View the server logs for specific error messages
-
-### PID file issues
-- If the server status seems incorrect, delete the `server.pid` file
-- The plugin will automatically recreate it on next start
+### Server not detected
+Only `node` processes listening on TCP ports are detected. Check manually:
+```bash
+lsof -iTCP -sTCP:LISTEN -n -P | grep node
+```
 
 ## License
 
 MIT
-
----

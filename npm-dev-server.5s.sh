@@ -1,241 +1,272 @@
 #!/usr/bin/env bash
 
-# <xbar.title>NPM Dev Server</xbar.title>
-# <xbar.version>v1.2</xbar.version>
+# <xbar.title>NPM Dev Server Monitor</xbar.title>
+# <xbar.version>v2.1</xbar.version>
 # <xbar.author>Watchdealer Pavel</xbar.author>
 # <xbar.author.github>watchdealer-pavel</xbar.author.github>
-# <xbar.desc>Start/stop npm dev server from the menu bar</xbar.desc>
+# <xbar.desc>Monitor and control all node dev servers with resource tracking</xbar.desc>
 # <xbar.image>https://github.com/watchdealer-pavel/pavels-swiftbar-npm-scripts/raw/main/preview.png</xbar.image>
 # <xbar.dependencies>npm</xbar.dependencies>
 # <xbar.abouturl>https://github.com/watchdealer-pavel/pavels-swiftbar-npm-scripts</xbar.abouturl>
-# <xbar.var>string(VAR_PROJECT_PATH="/Users/yourname/project"): Path to your project directory</xbar.var>
-# <xbar.var>string(VAR_DEV_COMMAND="npm run dev"): Command to start the server</xbar.var>
-# To configure, please edit the variables below directly.
+# <xbar.var>string(VAR_PROJECT_PATH="$HOME/projects/my-app"): Default project path for starting new servers</xbar.var>
+# <xbar.var>string(VAR_DEV_COMMAND="npm run dev"): Default command to start the server</xbar.var>
 
 # ===== CONFIGURATION =====
 
-# Path to your project directory (Required)
-# Example: PROJECT_PATH="/Users/username/projects/my-app"
+# Default project path for "Start Server" action
 PROJECT_PATH="${VAR_PROJECT_PATH:-$HOME/projects/my-app}"
+
+# Default command to start the server
+DEV_COMMAND="${VAR_DEV_COMMAND:-npm run dev}"
 
 # Ensure Homebrew binaries are available
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-# Command to start the server (Default: npm run dev)
-DEV_COMMAND="${VAR_DEV_COMMAND:-npm run dev}"
-
-# Process name to search for (must match what appears in 'ps' output)
-# If empty, we will search for the full DEV_COMMAND string
-PROCESS_NAME=""
+# Resource warning thresholds
+CPU_WARNING_THRESHOLD=80
+MEMORY_WARNING_THRESHOLD=500
 
 # ===== END CONFIGURATION =====
 
-# Get script directory and files
-SCRIPT_DIR="$(dirname "$0")"
-
 # Runtime storage
-# Use SwiftBar's provided data directory if available, otherwise fallback to a hidden home dir
-DATA_DIR="${SWIFTBAR_PLUGIN_DATA_PATH:-$HOME/.npm-dev-server}"
-mkdir -p "$DATA_DIR"
+DATA_DIR="$HOME/.npm-dev-server"
+mkdir -p "$DATA_DIR/servers"
 
-PID_FILE="$DATA_DIR/server.pid"
-LOG_FILE="$DATA_DIR/server.log"
+# ===== UTILITY FUNCTIONS =====
 
-# Function to check if the server is running
-is_server_running() {
-    # First check if PID file exists and process is running
-    if [ -f "$PID_FILE" ]; then
-        PID=$(cat "$PID_FILE")
-        if ps -p "$PID" > /dev/null 2>&1; then
-            return 0  # Server is running
-        else
-            # Stale PID file, remove it
-            rm -f "$PID_FILE"
-        fi
-    fi
-    
-    # Fallback to process name detection
-    SEARCH_PATTERN="${PROCESS_NAME:-$DEV_COMMAND}"
-    pgrep -f "$SEARCH_PATTERN" > /dev/null
-    return $?
+get_project_name() {
+    basename "$1"
 }
 
-# Function to get the port of the running server
-get_port() {
-    if [ -f "$PID_FILE" ]; then
-        PID=$(cat "$PID_FILE")
-        # Use lsof to find the TCP listen port for this PID
-        PORT=$(lsof -Pan -p "$PID" -iTCP -sTCP:LISTEN | grep -oE ':[0-9]+' | head -1 | sed 's/://')
-        echo "$PORT"
+get_process_cwd() {
+    local pid="$1"
+    lsof -p "$pid" -a -d cwd -n -Fn 2>/dev/null | grep '^n' | sed 's/^n//'
+}
+
+get_process_stats() {
+    local pid="$1"
+    if ps -p "$pid" > /dev/null 2>&1; then
+        local cpu mem_kb
+        cpu=$(ps -p "$pid" -o %cpu= 2>/dev/null | tr -d ' ')
+        mem_kb=$(ps -p "$pid" -o rss= 2>/dev/null | tr -d ' ')
+        local mem_mb=$((mem_kb / 1024))
+        echo "$cpu $mem_mb"
     fi
 }
 
-# Function to list other running node servers
-list_other_servers() {
-    # Find all node processes listening on TCP ports
-    # Output format: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
-    # We filter for 'node' command and LISTEN state
-    
-    echo "---"
-    echo "Other Running Servers"
-    
-    # We use lsof to find all node processes listening on ports
-    # We exclude the current server's PID if it's running
-    CURRENT_PID=""
-    if [ -f "$PID_FILE" ]; then
-        CURRENT_PID=$(cat "$PID_FILE")
-    fi
-    
-    FOUND=0
-    
-    # Parse lsof output
-    # -n: no host names, -P: no port names, -iTCP: only TCP, -sTCP:LISTEN: only listening
-    while read -r line; do
-        # Extract PID and Port
-        # Example line: node 12345 user ... *:3000 (LISTEN)
-        PID=$(echo "$line" | awk '{print $2}')
-        PORT_INFO=$(echo "$line" | awk '{print $9}') # usually *:3000 or similar
-        PORT=$(echo "$PORT_INFO" | grep -oE '[0-9]+' | tail -1)
-        
-        # Skip if it's the current server
-        if [ "$PID" == "$CURRENT_PID" ]; then
+is_process_stuck() {
+    local pid="$1"
+    local state
+    state=$(ps -p "$pid" -o state= 2>/dev/null | tr -d ' ')
+    [[ "$state" == "D" ]] || [[ "$state" == "Z" ]]
+}
+
+path_hash() {
+    echo "$1" | md5 | cut -c1-8
+}
+
+# ===== SERVER DETECTION =====
+
+detect_all_node_servers() {
+    local seen_pids=""
+    while IFS= read -r line; do
+        local pid port
+        pid=$(echo "$line" | awk '{print $2}')
+        if [[ "$seen_pids" == *"$pid"* ]]; then
             continue
         fi
-        
-        if [ -n "$PID" ] && [ -n "$PORT" ]; then
-            echo "Node ($PID) on :$PORT | shell=\"$0\" param1=kill_pid param2=$PID terminal=false refresh=true tooltip=\"Click to kill process $PID\""
-            FOUND=1
+        seen_pids="$seen_pids $pid"
+        port=$(echo "$line" | awk '{print $9}' | grep -oE '[0-9]+' | tail -1)
+        local cwd
+        cwd=$(get_process_cwd "$pid")
+        if [[ -n "$pid" ]] && [[ -n "$port" ]]; then
+            echo "$pid $port $cwd"
         fi
-    done < <(lsof -iTCP -sTCP:LISTEN -n -P | grep -E "^node")
-    
-    if [ "$FOUND" -eq 0 ]; then
-        echo "None detected | disabled=true"
-    fi
+    done < <(lsof -iTCP -sTCP:LISTEN -n -P 2>/dev/null | grep -E "^node")
 }
 
-# Action: Kill specific PID
-action_kill_pid() {
-    TARGET_PID="$2"
-    if [ -n "$TARGET_PID" ]; then
-        kill -9 "$TARGET_PID"
-        osascript -e "display notification \"Killed process $TARGET_PID\" with title \"NPM Dev Server\""
-    fi
+# ===== LOG FILE MANAGEMENT =====
+
+get_log_file() {
+    local cwd="$1"
+    echo "$DATA_DIR/servers/$(path_hash "$cwd").log"
 }
 
-# Action: Start Server
+get_pid_file() {
+    local cwd="$1"
+    echo "$DATA_DIR/servers/$(path_hash "$cwd").pid"
+}
+
+# ===== ACTION HANDLERS =====
+
 action_start() {
     if ! command -v npm &> /dev/null; then
-        osascript -e "display notification \"npm not found in PATH\" with title \"NPM Dev Server Error\""
+        osascript -e "display notification \"npm not found in PATH\" with title \"Dev Server\""
         exit 1
     fi
 
-    if [ ! -d "$PROJECT_PATH" ]; then
-        osascript -e "display notification \"Project path does not exist: $PROJECT_PATH\" with title \"NPM Dev Server Error\""
+    if [[ ! -d "$PROJECT_PATH" ]]; then
+        osascript -e "display notification \"Project not found: $PROJECT_PATH\" with title \"Dev Server\""
         exit 1
     fi
-    
-    # Check if already running
-    if is_server_running; then
-        osascript -e "display notification \"Server is already running\" with title \"NPM Dev Server\""
-        exit 0
+
+    local log_file pid_file
+    log_file=$(get_log_file "$PROJECT_PATH")
+    pid_file=$(get_pid_file "$PROJECT_PATH")
+
+    if [[ -f "$pid_file" ]]; then
+        local existing_pid
+        existing_pid=$(cat "$pid_file")
+        if ps -p "$existing_pid" > /dev/null 2>&1; then
+            osascript -e "display notification \"Already running\" with title \"Dev Server\""
+            exit 0
+        fi
     fi
 
     cd "$PROJECT_PATH" || exit 1
-    
-    nohup $DEV_COMMAND > "$LOG_FILE" 2>&1 &
-    SERVER_PID=$!
-    
-    # Save the PID
-    echo "$SERVER_PID" > "$PID_FILE"
-    
-    # Give the server a moment to start
+    nohup $DEV_COMMAND > "$log_file" 2>&1 &
+    local server_pid=$!
+    echo "$server_pid" > "$pid_file"
     sleep 2
-    
-    if ps -p "$SERVER_PID" > /dev/null 2>&1; then
-        osascript -e "display notification \"Server started successfully (PID: $SERVER_PID)\" with title \"NPM Dev Server\""
+
+    if ps -p "$server_pid" > /dev/null 2>&1; then
+        osascript -e "display notification \"Started $(get_project_name "$PROJECT_PATH")\" with title \"Dev Server\""
     else
-        osascript -e "display notification \"Failed to start server. Check logs for details.\" with title \"NPM Dev Server Error\""
-        rm -f "$PID_FILE"
+        osascript -e "display notification \"Failed to start\" with title \"Dev Server\""
+        rm -f "$pid_file"
     fi
 }
 
-# Action: Stop Server
 action_stop() {
-    if [ -f "$PID_FILE" ]; then
-        PID=$(cat "$PID_FILE")
-        if ps -p "$PID" > /dev/null 2>&1; then
-            kill "$PID"
-            sleep 2
-            if ps -p "$PID" > /dev/null 2>&1; then
-                kill -9 "$PID"
-                sleep 1
-            fi
-            rm -f "$PID_FILE"
-            osascript -e "display notification \"Server stopped (PID: $PID)\" with title \"NPM Dev Server\""
-            return
+    local target_pid="$2"
+    [[ -z "$target_pid" ]] && exit 1
+
+    if ps -p "$target_pid" > /dev/null 2>&1; then
+        local cwd project_name
+        cwd=$(get_process_cwd "$target_pid")
+        project_name=$(get_project_name "$cwd")
+
+        kill "$target_pid" 2>/dev/null
+        sleep 2
+        ps -p "$target_pid" > /dev/null 2>&1 && kill -9 "$target_pid" 2>/dev/null
+
+        rm -f "$(get_pid_file "$cwd")" 2>/dev/null
+        osascript -e "display notification \"Stopped $project_name\" with title \"Dev Server\""
+    fi
+}
+
+action_force_kill() {
+    local target_pid="$2"
+    [[ -z "$target_pid" ]] && exit 1
+
+    if ps -p "$target_pid" > /dev/null 2>&1; then
+        local cwd
+        cwd=$(get_process_cwd "$target_pid")
+        kill -9 "$target_pid" 2>/dev/null
+        rm -f "$(get_pid_file "$cwd")" 2>/dev/null
+        osascript -e "display notification \"Force killed\" with title \"Dev Server\""
+    fi
+}
+
+action_logs() {
+    local target_pid="$2"
+    [[ -z "$target_pid" ]] && exit 1
+
+    local cwd log_file
+    cwd=$(get_process_cwd "$target_pid")
+
+    if [[ -n "$cwd" ]]; then
+        log_file=$(get_log_file "$cwd")
+        if [[ -f "$log_file" ]]; then
+            echo "=== $(get_project_name "$cwd") ==="
+            tail -f "$log_file"
         else
-            rm -f "$PID_FILE"
+            echo "No logs available (server started externally)"
         fi
     fi
-    
-    # Fallback to pkill if PID file didn't work or wasn't there
-    SEARCH_PATTERN="${PROCESS_NAME:-$DEV_COMMAND}"
-    
-    if pgrep -f "$SEARCH_PATTERN" > /dev/null; then
-        pkill -f "$SEARCH_PATTERN"
-        osascript -e "display notification \"Server stopped (detected by process name)\" with title \"NPM Dev Server\""
-    else
-        osascript -e "display notification \"Server was not running\" with title \"NPM Dev Server\""
-    fi
 }
 
-# Action: View Logs
-action_logs() {
-    if [ -f "$LOG_FILE" ]; then
-        echo "Following server logs (Ctrl+C to exit):"
-        tail -f "$LOG_FILE"
-    else
-        echo "No log file found at $LOG_FILE"
-    fi
+action_open() {
+    local port="$2"
+    [[ -n "$port" ]] && open "http://localhost:$port"
 }
 
+# ===== COMMAND DISPATCHER =====
 
-# Dispatcher based on argument
 case "$1" in
-    "start")
-        action_start
-        exit 0
-        ;;
-    "stop")
-        action_stop
-        exit 0
-        ;;
-    "logs")
-        action_logs
-        exit 0
-        ;;
-    "kill_pid")
-        action_kill_pid "$1" "$2"
-        exit 0
-        ;;
+    "start") action_start; exit 0 ;;
+    "stop") action_stop "$@"; exit 0 ;;
+    "force_kill") action_force_kill "$@"; exit 0 ;;
+    "logs") action_logs "$@"; exit 0 ;;
+    "open") action_open "$@"; exit 0 ;;
 esac
 
-# Main Menu Output
-if is_server_running; then
-    echo "| sfimage=checkmark.circle.fill color=green tooltip=Dev Server Running"
-    echo "---"
-    
-    # Try to get port and show URL
-    PORT=$(get_port)
-    if [ -n "$PORT" ]; then
-        echo "http://localhost:$PORT | href=http://localhost:$PORT"
-    fi
-    
-    echo "Stop Server | shell=\"$0\" param1=stop terminal=false refresh=true tooltip=\"Stop the development server\""
-    echo "View Logs | shell=\"$0\" param1=logs terminal=true refresh=true tooltip=\"View server logs in Terminal\""
+# ===== MENU OUTPUT =====
+
+servers=()
+while IFS= read -r line; do
+    [[ -n "$line" ]] && servers+=("$line")
+done < <(detect_all_node_servers)
+
+server_count=${#servers[@]}
+
+# ===== MENU BAR ICON =====
+# Clean, minimalistic: just an icon, count shown only when servers running
+if [[ $server_count -gt 0 ]]; then
+    echo "$server_count | sfimage=terminal.fill sfsize=14"
 else
-    echo "| sfimage=xmark.circle.fill color=red tooltip=Dev Server Stopped"
-    echo "---"
-    echo "Start Server | shell=\"$0\" param1=start terminal=false refresh=true tooltip=\"Start the development server\""
+    echo "| sfimage=terminal sfsize=14"
 fi
-list_other_servers
+
+echo "---"
+
+# ===== RUNNING SERVERS =====
+if [[ $server_count -gt 0 ]]; then
+    for server_info in "${servers[@]}"; do
+        read -r pid port cwd <<< "$server_info"
+        project_name=$(get_project_name "$cwd")
+        stats=$(get_process_stats "$pid")
+        read -r cpu mem <<< "$stats"
+
+        # Warning check
+        cpu_int=${cpu%.*}
+        has_warning=false
+        [[ ${cpu_int:-0} -gt $CPU_WARNING_THRESHOLD ]] || [[ ${mem:-0} -gt $MEMORY_WARNING_THRESHOLD ]] && has_warning=true
+        is_process_stuck "$pid" && has_warning=true
+
+        # Server header - clickable to open URL
+        if $has_warning; then
+            echo "$project_name :$port | sfimage=exclamationmark.triangle size=13 shell=\"$0\" param1=open param2=$port terminal=false"
+        else
+            echo "$project_name :$port | sfimage=checkmark.circle size=13 shell=\"$0\" param1=open param2=$port terminal=false"
+        fi
+
+        # Stats row
+        echo "-- ${cpu:-0}% CPU · ${mem:-0}MB | sfimage=gauge.with.dots.needle.bottom.50percent size=11 disabled=true"
+
+        # Path
+        echo "-- $cwd | sfimage=folder size=10 disabled=true"
+
+        echo "-- ---"
+
+        # Actions
+        if is_process_stuck "$pid"; then
+            echo "-- Force Kill | sfimage=xmark.circle.fill shell=\"$0\" param1=force_kill param2=$pid terminal=false refresh=true"
+        else
+            echo "-- Stop | sfimage=stop.circle shell=\"$0\" param1=stop param2=$pid terminal=false refresh=true"
+        fi
+        echo "-- Logs | sfimage=text.alignleft shell=\"$0\" param1=logs param2=$pid terminal=true"
+
+        echo "---"
+    done
+else
+    echo "No servers running | sfimage=moon.zzz size=12 disabled=true"
+    echo "---"
+fi
+
+# ===== START SERVER - Direct clickable action =====
+project_name=$(get_project_name "$PROJECT_PATH")
+echo "Start $project_name | sfimage=play.circle shell=\"$0\" param1=start terminal=false refresh=true"
+
+echo "---"
+echo "Refresh | sfimage=arrow.clockwise refresh=true"
