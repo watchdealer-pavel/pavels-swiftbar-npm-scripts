@@ -9,63 +9,60 @@ Monitor and control all your npm dev servers from the macOS menu bar.
 
 ## Quick Start
 
-1. Install SwiftBar: `brew install swiftbar`
-2. Clone this repo to your SwiftBar plugins folder
-3. Configure the script (see below)
-4. Make scripts executable: `chmod +x *.sh`
-5. Reload SwiftBar
+1. Install [SwiftBar](https://github.com/swiftbar/SwiftBar): `brew install swiftbar`
+2. On first launch, SwiftBar will ask you to choose a **Plugin Folder**
+3. Copy `npm-dev-server.5s.sh` to your Plugin Folder
+4. Configure the script (see below)
+5. Make it executable: `chmod +x npm-dev-server.5s.sh`
 
 ## Configuration
 
-Edit the **CONFIGURATION** section at the top of `npm-dev-server.5s.sh`:
+Open `npm-dev-server.5s.sh` and edit the **CONFIGURATION** section:
 
 ```bash
-# Default project path for "Start Server" action
-PROJECT_PATH="${VAR_PROJECT_PATH:-$HOME/projects/my-app}"
-
-# Command to start the server
-DEV_COMMAND="${VAR_DEV_COMMAND:-npm run dev}"
-
-# Resource warning thresholds
-CPU_WARNING_THRESHOLD=80      # Warn if CPU > 80%
-MEMORY_WARNING_THRESHOLD=500  # Warn if memory > 500MB
+# ===== CONFIGURATION =====
+# Change this to your project path:
+PROJECT_PATH="$HOME/projects/my-app"
+DEV_COMMAND="npm run dev"
+CPU_WARNING_THRESHOLD=80
+MEMORY_WARNING_THRESHOLD=500
+# ===== END CONFIGURATION =====
 ```
+
+**Important:** Set `PROJECT_PATH` to the full path of your npm project.
 
 ## Features
 
-* **Auto-Detection** — Automatically finds ALL running node servers on your machine
+* **Auto-Detection** — Finds ALL running node servers on your machine
 * **Resource Monitoring** — Real-time CPU% and memory usage per server
-* **One-Click Actions** — Start, stop, or force-kill servers directly from the menu
-* **Quick Access** — Click any server to open `localhost:PORT` in your browser
-* **Warning Indicators** — Visual alerts for high CPU/memory or stuck processes
-* **Minimalist Design** — Clean monochrome SF Symbols, no distracting colors
+* **One-Click Actions** — Start, stop, or force-kill servers from the menu
+* **Quick Access** — Click any server to open `localhost:PORT` in browser
+* **Warning Indicators** — Alerts for high CPU/memory or stuck processes
+* **Minimalist Design** — Clean monochrome SF Symbols
 
 ## Menu Structure
 
 **When idle:**
 ```
-⌘                              ← Terminal icon (no servers)
+⌘                              ← Terminal icon
 ───
   No servers running
 ───
-▶ Start my-app                 ← Direct click to start
+▶ Start my-app                 ← Click to start
 ───
 ↻ Refresh
 ```
 
 **When servers running:**
 ```
-⌘ 2                            ← Terminal icon + count
+⌘ 2                            ← Count badge
 ───
 ✓ my-app :3000                 ← Click to open in browser
    2.1% CPU · 125MB
-   /Users/you/projects/my-app
+   /path/to/project
    ───
    ⏹ Stop
    📄 Logs
-───
-✓ api-server :4000
-   ...
 ───
 ▶ Start my-app
 ───
@@ -74,31 +71,24 @@ MEMORY_WARNING_THRESHOLD=500  # Warn if memory > 500MB
 
 ## Files
 
-- `npm-dev-server.5s.sh` — Main SwiftBar plugin
-- `~/.npm-dev-server/` — Runtime data (auto-created)
+- `npm-dev-server.5s.sh` — Main plugin
+- `~/.npm-dev-server/` — Runtime data (logs, PIDs)
 
 ## Customization
 
-Rename the plugin file to change refresh rate:
+Rename the file to change refresh rate:
 - `npm-dev-server.30s.sh` = 30 seconds
 - `npm-dev-server.1m.sh` = 1 minute
 
 ## Troubleshooting
 
-### Error plugin appearing with "server" name
-Clean up old SwiftBar data directories:
-```bash
-rm -rf "$HOME/Library/Application Support/SwiftBar/Plugins/npm-dev-server.5s.sh"
-rm -rf "$HOME/Library/Application Support/SwiftBar/Plugins/server.log"
-```
-
 ### Server won't start
 - Verify `PROJECT_PATH` points to a valid npm project
-- Test manually: `cd ~/your-project && npm run dev`
+- Test manually: `cd /your/project && npm run dev`
 - Check logs: `cat ~/.npm-dev-server/servers/*.log`
 
 ### Server not detected
-Only `node` processes listening on TCP ports are detected. Check manually:
+Only `node` processes listening on TCP ports are detected:
 ```bash
 lsof -iTCP -sTCP:LISTEN -n -P | grep node
 ```
